@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.core.database import engine, Base
-from app.routers import threats, companies, organisations, campaigns
-import app.models  # ensures all models are registered
+from app.routers import threats, companies, organisations, campaigns, auth
+import app.models
 
 
 @asynccontextmanager
@@ -27,6 +27,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(threats.router)
 app.include_router(companies.router)
 app.include_router(organisations.router)
