@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import String, Float, DateTime, Enum as SAEnum
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 import enum
 
@@ -36,3 +36,10 @@ class Threat(Base):
     source_url: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    company_associations: Mapped[list["ThreatCompany"]] = relationship(
+        "ThreatCompany", back_populates="threat", cascade="all, delete-orphan"
+    )
+    campaigns: Mapped[list["Campaign"]] = relationship(
+        "Campaign", back_populates="threat", cascade="all, delete-orphan"
+    )
