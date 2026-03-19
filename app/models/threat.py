@@ -31,6 +31,7 @@ class Threat(Base):
     region: Mapped[str | None] = mapped_column(String, nullable=True)
     description: Mapped[str | None] = mapped_column(String, nullable=True)
     estimated_co2_impact_tonnes: Mapped[float | None] = mapped_column(Float, nullable=True)
+    land_area_affected_km2: Mapped[float | None] = mapped_column(Float, nullable=True)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     source_url: Mapped[str | None] = mapped_column(String, nullable=True)

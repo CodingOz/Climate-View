@@ -11,6 +11,7 @@ class ThreatBase(BaseModel):
     region: Optional[str] = None
     description: Optional[str] = None
     estimated_co2_impact_tonnes: Optional[float] = None
+    land_area_affected_km2: Optional[float] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     source_url: Optional[str] = None
