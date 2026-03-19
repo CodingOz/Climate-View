@@ -2,14 +2,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.core.database import engine, Base
-from app.routers import threats
+from app.routers import threats, companies, organisations, campaigns
+import app.models  # ensures all models are registered
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create tables on startup (later replace with Alembic)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
+
 
 app = FastAPI(
     title="Climate Threat & Resistance Tracker API",
@@ -26,6 +28,10 @@ app.add_middleware(
 )
 
 app.include_router(threats.router)
+app.include_router(companies.router)
+app.include_router(organisations.router)
+app.include_router(campaigns.router)
+
 
 @app.get("/")
 async def root():
