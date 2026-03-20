@@ -10,11 +10,12 @@ from app.models.user import User, UserRole
 from app.schemas.user import UserCreate, UserResponse, UserLogin, TokenResponse, UserUpdate
 from app.dependencies import get_current_user, require_admin
 import uuid
+from app.schemas.error import ErrorResponse
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=UserResponse, status_code=201, responses={400: {"model": ErrorResponse}})
 async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     # Check email not already taken
     existing_email = await db.execute(select(User).where(User.email == user_data.email))
@@ -39,7 +40,7 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     return db_user
 
 
-@router.post("/token", response_model=TokenResponse)
+@router.post("/token", response_model=TokenResponse, responses={401: {"model": ErrorResponse}})
 async def login(
     credentials: UserLogin,
     db: AsyncSession = Depends(get_db)
@@ -67,12 +68,12 @@ async def login(
         role=user.role
     )
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me", response_model=UserResponse, responses={401: {"model": ErrorResponse}})
 async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@router.put("/users/{user_id}", response_model=UserResponse)
+@router.put("/users/{user_id}", response_model=UserResponse, responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}})
 async def update_user(
     user_id: str,
     user_data: UserUpdate,
