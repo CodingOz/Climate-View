@@ -38,8 +38,3 @@ app.include_router(analytics.router)
 async def root():
     return {"message": "Climate Threat & Resistance Tracker API", "docs": "/docs"}
 
-@app.get("/admin/seed-once", include_in_schema=False)
-async def run_seed():
-    from scripts.seed_data import seed
-    await seed()
-    return {"status": "database seeded successfully"}
