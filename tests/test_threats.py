@@ -80,3 +80,51 @@ async def test_delete_threat_unauthenticated(client: AsyncClient, auth_headers: 
     threat_id = create.json()["id"]
     response = await client.delete(f"/threats/{threat_id}")
     assert response.status_code == 401
+    
+@pytest.mark.asyncio
+async def test_filter_threats_by_status(client: AsyncClient, auth_headers: dict):
+    await client.post("/threats/", json={
+        **THREAT_PAYLOAD,
+        "name": "Filter Test Threat",
+        "status": "APPROVED"
+    }, headers=auth_headers)
+
+    response = await client.get("/threats/?status=APPROVED")
+    assert response.status_code == 200
+    data = response.json()
+    assert all(t["status"] == "APPROVED" for t in data)
+
+
+@pytest.mark.asyncio
+async def test_filter_threats_by_country(client: AsyncClient, auth_headers: dict):
+    response = await client.get("/threats/?country=United+Kingdom")
+    assert response.status_code == 200
+    data = response.json()
+    assert all("United Kingdom" in t["country"] for t in data)
+
+
+@pytest.mark.asyncio
+async def test_filter_threats_by_type(client: AsyncClient, auth_headers: dict):
+    response = await client.get("/threats/?threat_type=PIPELINE")
+    assert response.status_code == 200
+    data = response.json()
+    assert all(t["threat_type"] == "PIPELINE" for t in data)
+
+
+@pytest.mark.asyncio
+async def test_filter_threats_by_min_co2(client: AsyncClient, auth_headers: dict):
+    response = await client.get("/threats/?min_co2=1000000")
+    assert response.status_code == 200
+    data = response.json()
+    assert all(
+        t["estimated_co2_impact_tonnes"] >= 1000000
+        for t in data
+        if t["estimated_co2_impact_tonnes"] is not None
+    )
+
+
+@pytest.mark.asyncio
+async def test_threats_pagination(client: AsyncClient):
+    response = await client.get("/threats/?skip=0&limit=2")
+    assert response.status_code == 200
+    assert len(response.json()) <= 2

@@ -4,12 +4,12 @@ from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
-from app.models.threat import Threat
+from app.models.threat import Threat, ThreatStatus, ThreatType
 from app.models.user import User
 from app.schemas.threat import ThreatCreate, ThreatUpdate, ThreatResponse
 from app.schemas.error import ErrorResponse
 from app.dependencies import get_current_user
-from typing import List
+from typing import List, Optional
 import uuid
 
 limiter = Limiter(key_func=get_remote_address)
@@ -18,8 +18,32 @@ router = APIRouter(prefix="/threats", tags=["Threats"])
 
 @router.get("/", response_model=List[ThreatResponse])
 @limiter.limit("100/minute")
-async def get_threats(request: Request, skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Threat).offset(skip).limit(limit))
+async def get_threats(
+    request: Request,
+    status: Optional[ThreatStatus] = None,
+    country: Optional[str] = None,
+    threat_type: Optional[ThreatType] = None,
+    min_co2: Optional[float] = None,
+    max_co2: Optional[float] = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db)
+):
+    query = select(Threat)
+
+    if status:
+        query = query.where(Threat.status == status)
+    if country:
+        query = query.where(Threat.country.ilike(f"%{country}%"))
+    if threat_type:
+        query = query.where(Threat.threat_type == threat_type)
+    if min_co2 is not None:
+        query = query.where(Threat.estimated_co2_impact_tonnes >= min_co2)
+    if max_co2 is not None:
+        query = query.where(Threat.estimated_co2_impact_tonnes <= max_co2)
+
+    query = query.offset(skip).limit(limit)
+    result = await db.execute(query)
     return result.scalars().all()
 
 

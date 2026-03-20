@@ -3,9 +3,9 @@ from app.core.limiter import limiter
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
-from app.models.company import Company
+from app.models.company import Company, CompanySector
 from app.schemas.company import CompanyCreate, CompanyUpdate, CompanyResponse
-from typing import List
+from typing import List, Optional
 import uuid
 
 router = APIRouter(prefix="/companies", tags=["Companies"])
@@ -13,10 +13,33 @@ router = APIRouter(prefix="/companies", tags=["Companies"])
 
 @router.get("/", response_model=List[CompanyResponse])
 @limiter.limit("100/minute")
-async def get_companies(request: Request, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Company))
-    return result.scalars().all()
+async def get_companies(
+    request: Request,
+    sector: Optional[CompanySector] = None,
+    country: Optional[str] = None,
+    is_paris_signatory: Optional[bool] = None,
+    max_esg_score: Optional[float] = None,
+    min_emissions: Optional[float] = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db)
+):
+    query = select(Company)
 
+    if sector:
+        query = query.where(Company.sector == sector)
+    if country:
+        query = query.where(Company.country_of_registration.ilike(f"%{country}%"))
+    if is_paris_signatory is not None:
+        query = query.where(Company.is_paris_signatory == is_paris_signatory)
+    if max_esg_score is not None:
+        query = query.where(Company.esg_score <= max_esg_score)
+    if min_emissions is not None:
+        query = query.where(Company.annual_emissions_mtonnes >= min_emissions)
+
+    query = query.offset(skip).limit(limit)
+    result = await db.execute(query)
+    return result.scalars().all()
 
 @router.post("/", response_model=CompanyResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("20/minute")

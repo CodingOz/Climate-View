@@ -56,3 +56,30 @@ async def test_delete_company(client: AsyncClient, auth_headers: dict):
     company_id = create.json()["id"]
     delete = await client.delete(f"/companies/{company_id}", headers=auth_headers)
     assert delete.status_code == 204
+    
+@pytest.mark.asyncio
+async def test_filter_companies_by_sector(client: AsyncClient, auth_headers: dict):
+    await client.post("/companies/", json={
+        **COMPANY_PAYLOAD,
+        "name": "Filter Test Company",
+        "sector": "OIL_GAS"
+    }, headers=auth_headers)
+    response = await client.get("/companies/?sector=OIL_GAS")
+    assert response.status_code == 200
+    data = response.json()
+    assert all(c["sector"] == "OIL_GAS" for c in data)
+
+
+@pytest.mark.asyncio
+async def test_filter_companies_by_paris_signatory(client: AsyncClient):
+    response = await client.get("/companies/?is_paris_signatory=false")
+    assert response.status_code == 200
+    data = response.json()
+    assert all(c["is_paris_signatory"] is False for c in data)
+
+
+@pytest.mark.asyncio
+async def test_companies_pagination(client: AsyncClient):
+    response = await client.get("/companies/?skip=0&limit=2")
+    assert response.status_code == 200
+    assert len(response.json()) <= 2
