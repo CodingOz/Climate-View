@@ -22,7 +22,7 @@ import app.models
 config = context.config
 
 # Override sqlalchemy.url with value from .env
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+config.set_main_option("sqlalchemy.url", settings.async_database_url)
 
 # Logging
 if config.config_file_name is not None:
