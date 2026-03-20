@@ -1,10 +1,14 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
-from app.core.database import engine, Base
-from app.routers import threats, companies, organisations, campaigns, auth
-import app.models
+from slowapi import Limiter, _rate_limit_exceeded_handler
 from app.routers import threats, companies, organisations, campaigns, auth, analytics
+import app.models
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from app.core.limiter import limiter
+
 
 
 @asynccontextmanager
@@ -18,6 +22,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -37,4 +44,3 @@ app.include_router(analytics.router)
 @app.get("/")
 async def root():
     return {"message": "Climate Threat & Resistance Tracker API", "docs": "/docs"}
-

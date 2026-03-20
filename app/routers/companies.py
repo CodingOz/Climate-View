@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from app.core.limiter import limiter
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
@@ -11,13 +12,15 @@ router = APIRouter(prefix="/companies", tags=["Companies"])
 
 
 @router.get("/", response_model=List[CompanyResponse])
-async def get_companies(db: AsyncSession = Depends(get_db)):
+@limiter.limit("100/minute")
+async def get_companies(request: Request, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Company))
     return result.scalars().all()
 
 
 @router.post("/", response_model=CompanyResponse, status_code=status.HTTP_201_CREATED)
-async def create_company(company: CompanyCreate, db: AsyncSession = Depends(get_db)):
+@limiter.limit("20/minute")
+async def create_company(request: Request, company: CompanyCreate, db: AsyncSession = Depends(get_db)):
     # Check for duplicate name
     existing = await db.execute(select(Company).where(Company.name == company.name))
     if existing.scalar_one_or_none():
@@ -30,7 +33,8 @@ async def create_company(company: CompanyCreate, db: AsyncSession = Depends(get_
 
 
 @router.get("/{company_id}", response_model=CompanyResponse)
-async def get_company(company_id: str, db: AsyncSession = Depends(get_db)):
+@limiter.limit("100/minute")
+async def get_company(request: Request, company_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Company).where(Company.id == company_id))
     company = result.scalar_one_or_none()
     if not company:
@@ -39,7 +43,8 @@ async def get_company(company_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/{company_id}", response_model=CompanyResponse)
-async def update_company(company_id: str, company_data: CompanyUpdate, db: AsyncSession = Depends(get_db)):
+@limiter.limit("20/minute")
+async def update_company(request: Request, company_id: str, company_data: CompanyUpdate, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Company).where(Company.id == company_id))
     company = result.scalar_one_or_none()
     if not company:
@@ -52,7 +57,8 @@ async def update_company(company_id: str, company_data: CompanyUpdate, db: Async
 
 
 @router.delete("/{company_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_company(company_id: str, db: AsyncSession = Depends(get_db)):
+@limiter.limit("20/minute")
+async def delete_company(request: Request, company_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Company).where(Company.id == company_id))
     company = result.scalar_one_or_none()
     if not company:
@@ -62,7 +68,8 @@ async def delete_company(company_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{company_id}/threats", response_model=List[dict])
-async def get_company_threats(company_id: str, db: AsyncSession = Depends(get_db)):
+@limiter.limit("100/minute")
+async def get_company_threats(request: Request, company_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Company).where(Company.id == company_id))
     company = result.scalar_one_or_none()
     if not company:

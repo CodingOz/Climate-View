@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from app.core.limiter import limiter
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
@@ -11,13 +12,15 @@ router = APIRouter(prefix="/organisations", tags=["Organisations"])
 
 
 @router.get("/", response_model=List[OrganisationResponse])
-async def get_organisations(db: AsyncSession = Depends(get_db)):
+@limiter.limit("100/minute")
+async def get_organisations(request: Request, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Organisation))
     return result.scalars().all()
 
 
 @router.post("/", response_model=OrganisationResponse, status_code=status.HTTP_201_CREATED)
-async def create_organisation(org: OrganisationCreate, db: AsyncSession = Depends(get_db)):
+@limiter.limit("20/minute")
+async def create_organisation(request: Request, org: OrganisationCreate, db: AsyncSession = Depends(get_db)):
     existing = await db.execute(select(Organisation).where(Organisation.name == org.name))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Organisation with this name already exists")
@@ -29,7 +32,8 @@ async def create_organisation(org: OrganisationCreate, db: AsyncSession = Depend
 
 
 @router.get("/{org_id}", response_model=OrganisationResponse)
-async def get_organisation(org_id: str, db: AsyncSession = Depends(get_db)):
+@limiter.limit("100/minute")
+async def get_organisation(request: Request, org_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Organisation).where(Organisation.id == org_id))
     org = result.scalar_one_or_none()
     if not org:
@@ -38,7 +42,8 @@ async def get_organisation(org_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/{org_id}", response_model=OrganisationResponse)
-async def update_organisation(org_id: str, org_data: OrganisationUpdate, db: AsyncSession = Depends(get_db)):
+@limiter.limit("100/minute")
+async def update_organisation(request: Request, org_id: str, org_data: OrganisationUpdate, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Organisation).where(Organisation.id == org_id))
     org = result.scalar_one_or_none()
     if not org:
@@ -51,7 +56,8 @@ async def update_organisation(org_id: str, org_data: OrganisationUpdate, db: Asy
 
 
 @router.delete("/{org_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_organisation(org_id: str, db: AsyncSession = Depends(get_db)):
+@limiter.limit("20/minute")
+async def delete_organisation(request: Request, org_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Organisation).where(Organisation.id == org_id))
     org = result.scalar_one_or_none()
     if not org:
@@ -61,7 +67,8 @@ async def delete_organisation(org_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{org_id}/campaigns", response_model=List[dict])
-async def get_organisation_campaigns(org_id: str, db: AsyncSession = Depends(get_db)):
+@limiter.limit("100/minute")
+async def get_organisation_campaigns(request: Request, org_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Organisation).where(Organisation.id == org_id))
     org = result.scalar_one_or_none()
     if not org:

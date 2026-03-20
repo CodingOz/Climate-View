@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from app.core.limiter import limiter
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
@@ -11,15 +12,16 @@ import uuid
 
 router = APIRouter(prefix="/campaigns", tags=["Campaigns"])
 
-
 @router.get("/", response_model=List[CampaignResponse])
-async def get_campaigns(db: AsyncSession = Depends(get_db)):
+@limiter.limit("100/minute")
+async def get_campaigns(request: Request, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Campaign))
     return result.scalars().all()
 
 
 @router.post("/", response_model=CampaignResponse, status_code=status.HTTP_201_CREATED)
-async def create_campaign(campaign: CampaignCreate, db: AsyncSession = Depends(get_db)):
+@limiter.limit("20/minute")
+async def create_campaign(request: Request, campaign: CampaignCreate, db: AsyncSession = Depends(get_db)):
     # Validate threat exists
     threat = await db.execute(select(Threat).where(Threat.id == campaign.threat_id))
     if not threat.scalar_one_or_none():
@@ -36,7 +38,8 @@ async def create_campaign(campaign: CampaignCreate, db: AsyncSession = Depends(g
 
 
 @router.get("/{campaign_id}", response_model=CampaignResponse)
-async def get_campaign(campaign_id: str, db: AsyncSession = Depends(get_db)):
+@limiter.limit("100/minute")
+async def get_campaign(request: Request, campaign_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Campaign).where(Campaign.id == campaign_id))
     campaign = result.scalar_one_or_none()
     if not campaign:
@@ -45,7 +48,8 @@ async def get_campaign(campaign_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/{campaign_id}", response_model=CampaignResponse)
-async def update_campaign(campaign_id: str, campaign_data: CampaignUpdate, db: AsyncSession = Depends(get_db)):
+@limiter.limit("20/minute")
+async def update_campaign(request: Request, campaign_id: str, campaign_data: CampaignUpdate, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Campaign).where(Campaign.id == campaign_id))
     campaign = result.scalar_one_or_none()
     if not campaign:
@@ -58,7 +62,8 @@ async def update_campaign(campaign_id: str, campaign_data: CampaignUpdate, db: A
 
 
 @router.delete("/{campaign_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_campaign(campaign_id: str, db: AsyncSession = Depends(get_db)):
+@limiter.limit("20/minute")
+async def delete_campaign(request: Request, campaign_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Campaign).where(Campaign.id == campaign_id))
     campaign = result.scalar_one_or_none()
     if not campaign:

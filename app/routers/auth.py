@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from app.core.limiter import limiter
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -16,7 +17,8 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/register", response_model=UserResponse, status_code=201, responses={400: {"model": ErrorResponse}})
-async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
+@limiter.limit("20/minute")
+async def register(request: Request, user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     # Check email not already taken
     existing_email = await db.execute(select(User).where(User.email == user_data.email))
     if existing_email.scalar_one_or_none():
@@ -41,7 +43,9 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/token", response_model=TokenResponse, responses={401: {"model": ErrorResponse}})
+@limiter.limit("20/minute")
 async def login(
+    request: Request,
     credentials: UserLogin,
     db: AsyncSession = Depends(get_db)
 ):
@@ -69,12 +73,15 @@ async def login(
     )
 
 @router.get("/me", response_model=UserResponse, responses={401: {"model": ErrorResponse}})
-async def get_me(current_user: User = Depends(get_current_user)):
+@limiter.limit("100/minute")
+async def get_me(request: Request, current_user: User = Depends(get_current_user)):
     return current_user
 
 
 @router.put("/users/{user_id}", response_model=UserResponse, responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}})
+@limiter.limit("20/minute")
 async def update_user(
+    request: Request,
     user_id: str,
     user_data: UserUpdate,
     db: AsyncSession = Depends(get_db),
